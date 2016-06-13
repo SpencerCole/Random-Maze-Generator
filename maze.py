@@ -9,7 +9,6 @@ import timeit
 class Maze(object):
 
 	def __init__(self, width=None, height=None, speed=None, show_steps=None, no_print=None, raw=None, seed=None):
-		# TODO: Generate and Capture random seed.
 		self.width = width
 		self.height = height
 		self.speed = speed
@@ -23,10 +22,11 @@ class Maze(object):
 						'#': ' #',
 						'@': ' @'}
 		self.previous_cells = []
-		self.visited_cells = []
-		self.current_cell = [0,0]
-		self.visited_cells.append(list(self.current_cell))
-		self.previous_cells.append(list(self.current_cell))
+		self.visited_cells = {}
+		self.current_cell = (0, 0)
+		self.visited_cells[self.current_cell] = True
+		self.previous_cells.append(self.current_cell)
+		self.try_to_make_exit = False
 		self.has_exit = False
 		self.seed = seed or int(time.time())
 		self.progress_pos = 0
@@ -45,23 +45,15 @@ class Maze(object):
 	def _chooseNeighbor(self):
 		unvisited_neighbors = []
 
-		up = None
-		dn = None
-		lt = None
-		rt = None
+		neighbors = [[self.current_cell[0] - 1, self.current_cell[1], 'up'],
+					 [self.current_cell[0] + 1, self.current_cell[1], 'dn'],
+					 [self.current_cell[0], self.current_cell[1] - 1, 'lt'],
+					 [self.current_cell[0], self.current_cell[1] + 1, 'rt']]
 
-		if self.current_cell[0] - 1 >= 0:
-			up = [self.current_cell[0] - 1, self.current_cell[1], 'up']
-			if up and up[:2] not in self.visited_cells:	unvisited_neighbors.append(up)
-		if self.current_cell[0] + 1 < self.height:
-			dn = [self.current_cell[0] + 1, self.current_cell[1], 'dn']
-			if dn and dn[:2] not in self.visited_cells:	unvisited_neighbors.append(dn)
-		if self.current_cell[1] - 1 >= 0:
-			lt = [self.current_cell[0], self.current_cell[1] - 1, 'lt']
-			if lt and lt[:2] not in self.visited_cells:	unvisited_neighbors.append(lt)
-		if self.current_cell[1] + 1 < self.width:
-			rt = [self.current_cell[0], self.current_cell[1] + 1, 'rt']
-			if rt and rt[:2] not in self.visited_cells: unvisited_neighbors.append(rt)
+		for n in neighbors:
+			if not self.visited_cells.get(tuple(n[:2])) and self.maze.get(str(n[0]), {}).get(str(n[1])):
+				if n[0] < self.height and n[1] < self.width:
+					unvisited_neighbors.append(n)
 
 		return random.choice(unvisited_neighbors) if unvisited_neighbors else None
 
@@ -73,83 +65,86 @@ class Maze(object):
 
 		edge = None
 		# This usually makes the exit right next to the entrance.
-		#if self.current_cell[0] - 1 < 0:
-		#	edge = 'up'
-		#	cell = list(self.current_cell)
+			#if self.current_cell[0] - 1 < 0:
+			#	edge = 'up'
+		cell = list(self.current_cell)
 		if self.current_cell[1] - 1 < 0:
 			edge = 'lt'
-			cell = list(self.current_cell)
 		elif self.current_cell[1] + 1 >= self.width:
 			edge = 'rt'
-			cell = list(self.current_cell)
 			cell[1] += 1
 		elif self.current_cell[0] + 1 >= self.height:
 			edge = 'dn'
-			cell = list(self.current_cell)
 			cell[0] += 1
 
 		if edge:
 			cell.append(edge)
 			self._removeWall(cell)
+			self.try_to_make_exit = False
 			self.has_exit = True
 
 
 	def _removeWall(self, cell):
-		if cell[2] == 'up': # 10
-			self.maze[self.current_cell[0]][self.current_cell[1]][1] = 0
+		if cell[2] == 'up': # 10 / 00
+			self.maze[str(self.current_cell[0])][str(self.current_cell[1])][1] = 0
 
-		if cell[2] == 'lt': # 01
-			self.maze[self.current_cell[0]][self.current_cell[1]][0] = 0
+		if cell[2] == 'lt': # 01 / 00
+			self.maze[str(self.current_cell[0])][str(self.current_cell[1])][0] = 0
 
-		if cell[2] == 'dn': # 10
-			self.maze[cell[0]][cell[1]][1] = 0
+		if cell[2] == 'dn': # 10 / 00
+			self.maze[str(cell[0])][str(cell[1])][1] = 0
 
-		if cell[2] == 'rt': # 01
-			self.maze[cell[0]][cell[1]][0] = 0
+		if cell[2] == 'rt': # 01 / 00
+			self.maze[str(cell[0])][str(cell[1])][0] = 0
 
 
 	def _generate(self):
 		# Build basic maze form
-		self.maze = []
+		self.maze = {}
 		for row in range(self.height):
-			maze_row = []
+			maze_row = {}
 			for col in range(self.width):
-				maze_row.append([1, 1])
-			self.maze.append(list(maze_row))
+				maze_row[str(col)] = list([1, 1])
+				# Add ending columns edges
+				if col == self.width - 1:
+					maze_row[str(col + 1)] = list([1, 0])
+			self.maze[str(row)] = maze_row
 
 		# Make the entrance
-		self.maze[0][0] = [1, 0]
-
-		# Add ending columns edges
-		for row in self.maze:
-			row.append([1, 0])
+		self.maze['0']['0'] = list([1, 0])
 
 		# Add bottom row bottoms
-		bottom_row = []
+		bottom_row = {}
 		for i in range(self.width + 1):
-			bottom_row.append([0, 1])
-		self.maze.append(bottom_row)
+			bottom_row[str(i)] = list([0, 1])
+		self.maze[str(self.height)] = bottom_row
 
 		# Fix last box on the furthest edges (height, width)
-		self.maze[self.height][self.width] = [0, 0]
+		self.maze[str(self.height)][str(self.width)] = list([0, 0])
 
-		while self.previous_cells:
+		while self.previous_cells and len(self.visited_cells) != self.width * self.height:
 			neighbor = self._chooseNeighbor()
 			# choose random neighbor thats not been visited
 			if neighbor:
 				# push current cell to previous stack
 				if self.current_cell not in self.previous_cells:
-					self.previous_cells.append(list(self.current_cell))
+					self.previous_cells.append(self.current_cell)
 				# remove wall between
 				self._removeWall(neighbor)
-				self.current_cell = neighbor[:2]
+				self.current_cell = tuple(neighbor[:2])
 				# make new cell the current cell and mark it as visited
-				if self.current_cell not in self.visited_cells:
-					self.visited_cells.append(list(self.current_cell))
+				if not self.visited_cells.get(self.current_cell):
+					self.visited_cells[self.current_cell] = True
 			#if no neighbor and the stack is not empty
 			else:
-				if not self.has_exit: self._makeExit()
 				self.current_cell = self.previous_cells.pop()
+
+
+			if len(self.visited_cells) >= (self.width * self.height)/ 2 and not self.try_to_make_exit:
+				self.try_to_make_exit = True
+
+			if not self.has_exit and self.try_to_make_exit:
+				self._makeExit()
 
 			if self.show_steps:
 				self._print()
@@ -158,6 +153,10 @@ class Maze(object):
 			# Disply a progress bar
 			sys.stdout.write('\b' * 10 + self._progress())
 			sys.stdout.flush()
+
+		# Clear these for a pretty print at the end.
+		self.current_cell = []
+		self.previous_cells = []
 
 		if not self.no_print:
 			self._print()
@@ -186,17 +185,15 @@ class Maze(object):
 	def _mazeString(self):
 		self.maze_display_buf = ''
 		self.maze_raw_buf = ''
-		for i, row in enumerate(self.maze):
-			for x, col in enumerate(row):
+		for i in sorted(self.maze.iterkeys(), key=int):
+			for x in sorted(self.maze[i].iterkeys(), key=int):
+				col = self.maze[i][x]
 				# Show current position
-				if self.current_cell == [i, x] and self.previous_cells:
+				if self.current_cell == (int(i), int(x)) and self.previous_cells:
 					self.maze_display_buf += self._translate('#')
 				# Show history of positions
-				elif [i, x] in self.previous_cells:
+				elif (int(i), int(x)) in self.previous_cells:
 					self.maze_display_buf += self._translate('@')
-				# Show borders
-				elif [i, x] not in self.visited_cells and i < len(self.maze) - 1 and x < len(self.maze[0]) - 1:
-					self.maze_display_buf += self._translate('[0, 0]')
 				# Show the rest
 				else:
 					self.maze_display_buf += self._translate(str(col))
