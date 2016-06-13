@@ -16,11 +16,11 @@ class Maze(object):
 		self.no_print = no_print
 		self.raw = raw
 		self.mapping = {'[0, 0]': '  ',
-						'[1, 0]': '| ',
-						'[0, 1]': '``',
-						'[1, 1]': '|`',
-						'#': ' #',
-						'@': ' @'}
+										'[1, 0]': '| ',
+										'[0, 1]': '``',
+										'[1, 1]': '|`',
+										'#': ' #',
+										'@': ' @'}
 		self.previous_cells = []
 		self.visited_cells = {}
 		self.current_cell = (0, 0)
@@ -46,9 +46,9 @@ class Maze(object):
 		unvisited_neighbors = []
 
 		neighbors = [[self.current_cell[0] - 1, self.current_cell[1], 'up'],
-					 [self.current_cell[0] + 1, self.current_cell[1], 'dn'],
-					 [self.current_cell[0], self.current_cell[1] - 1, 'lt'],
-					 [self.current_cell[0], self.current_cell[1] + 1, 'rt']]
+								 [self.current_cell[0] + 1, self.current_cell[1], 'dn'],
+								 [self.current_cell[0], self.current_cell[1] - 1, 'lt'],
+								 [self.current_cell[0], self.current_cell[1] + 1, 'rt']]
 
 		for n in neighbors:
 			if not self.visited_cells.get(tuple(n[:2])) and self.maze.get(str(n[0]), {}).get(str(n[1])):
